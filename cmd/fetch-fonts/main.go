@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,10 +25,17 @@ func main() {
 }
 
 func mainE(ctx context.Context, args ...string) error {
+	flags := flag.NewFlagSet("fetch-fonts", flag.ContinueOnError)
+	path := flags.String("path", "", "base directory for downloaded font files")
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
 	var allTasks []fontsource.DownloadTask
 
-	for _, family := range args {
-		tasks, err := fontsource.GetDownloadTasks(ctx, family)
+	for _, family := range flags.Args() {
+		tasks, err := fontsource.GetDownloadTasks(ctx, *path, family)
 
 		if err != nil {
 			return fmt.Errorf("getting tasks for %s: %w", family, err)

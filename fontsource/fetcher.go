@@ -30,7 +30,8 @@ type DownloadTask struct {
 }
 
 // GetDownloadTasks discovers all available TTF variants for a family.
-func GetDownloadTasks(ctx context.Context, family string) ([]DownloadTask, error) {
+// baseDir is the directory under which font files will be placed (e.g. "kodata/fonts").
+func GetDownloadTasks(ctx context.Context, path, family string) ([]DownloadTask, error) {
 	id, err := findFontID(ctx, family)
 
 	if err != nil {
@@ -73,7 +74,7 @@ func GetDownloadTasks(ctx context.Context, family string) ([]DownloadTask, error
 
 				tasks = append(tasks, DownloadTask{
 					URL:  subset.URL.TTF,
-					Path: filepath.Join("kodata", "fonts", familyDir, filename),
+					Path: filepath.Join(path, familyDir, filename),
 				})
 			}
 		}
