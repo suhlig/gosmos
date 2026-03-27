@@ -1,6 +1,10 @@
 package typst
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+)
 
 type Platform struct {
 	OS   string
@@ -30,4 +34,18 @@ func Platforms(version string) []Platform {
 	}
 
 	return out
+}
+
+// BinPath returns the path to the typst binary for the given platform under
+// the given base directory, using the convention established by fetch-typst:
+// <base>/<OS>/<Arch>/typst.
+func BinPath(base string, p Platform) string {
+	return filepath.Join(base, p.OS, p.Arch, "typst")
+}
+
+// CurrentBinPath returns the path to the typst binary for the current
+// runtime platform (runtime.GOOS / runtime.GOARCH) under the given base
+// directory.
+func CurrentBinPath(base string) string {
+	return BinPath(base, Platform{OS: runtime.GOOS, Arch: runtime.GOARCH})
 }

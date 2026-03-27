@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/suhlig/gosmos/typst"
-
 	"golang.org/x/sync/errgroup"
 )
 
@@ -38,7 +37,7 @@ func mainE(ctx context.Context, args ...string) error {
 
 	for _, platform := range typst.Platforms(typstVersion) {
 		g.Go(func() error {
-			path := filepath.FromSlash(filepath.Join(*path, platform.OS, platform.Arch, "typst"))
+			path := typst.BinPath(*path, platform)
 
 			fileExists, err := fileExists(path)
 
