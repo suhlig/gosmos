@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 )
 
 func main() {
-	err := mainE(context.Background())
+	err := mainE(context.Background(), os.Args[1:]...)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error %s\n", err)
@@ -23,14 +24,21 @@ func main() {
 
 const typstVersion = "0.14.2"
 
-func mainE(ctx context.Context) error {
+func mainE(ctx context.Context, args ...string) error {
+	flags := flag.NewFlagSet("fetch-typst", flag.ContinueOnError)
+	path := flags.String("path", "", "base directory for downloaded typst binaries")
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
 	fetcher := typst.NewFetcher(typstVersion)
 
 	g, ctx := errgroup.WithContext(ctx)
 
 	for _, platform := range typst.Platforms(typstVersion) {
 		g.Go(func() error {
-			path := filepath.FromSlash(filepath.Join("kodata", "typst", platform.OS, platform.Arch, "typst"))
+			path := filepath.FromSlash(filepath.Join(*path, platform.OS, platform.Arch, "typst"))
 
 			fileExists, err := fileExists(path)
 
@@ -39,7 +47,7 @@ func mainE(ctx context.Context) error {
 			}
 
 			if fileExists {
-				// TODO do we need to check more than the file's existence? Size > 0; maybe even a digest?
+				// We trust what's there and do not perform additional checks, e.g. a checksum. We are not paranoid.
 				return nil
 			}
 
