@@ -8,13 +8,15 @@ import (
 	"strings"
 )
 
-type Compiler struct {
-	binPath   string
-	fontPaths []string
+type CompileCommand struct {
+	binPath               string
+	fontPaths             []string
+	isIgnoreSystemFonts   bool
+	isIgnoreEmbeddedFonts bool
 }
 
-func (t Compiler) Help() (string, error) {
-	cmd := exec.Command(t.binPath, "help")
+func (c CompileCommand) Help() (string, error) {
+	cmd := exec.Command(c.binPath, "help")
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
@@ -28,8 +30,8 @@ func (t Compiler) Help() (string, error) {
 	return stdout.String(), nil
 }
 
-func NewCompiler(binPath string) (*Compiler, error) {
-	t := Compiler{binPath: binPath}
+func NewCompileCommand(binPath string) (*CompileCommand, error) {
+	t := CompileCommand{binPath: binPath}
 
 	_, err := t.Help()
 
@@ -41,33 +43,47 @@ func NewCompiler(binPath string) (*Compiler, error) {
 }
 
 // TODO TYPST_ROOT
-// TODO TYPST_IGNORE_SYSTEM_FONTS
-// TODO TYPST_IGNORE_EMBEDDED_FONTS
 // TODO TYPST_PACKAGE_PATH
 // TODO TYPST_PACKAGE_CACHE_PATH
 // TODO SOURCE_DATE_EPOCH
 // TODO TYPST_FEATURES
 
-func (c *Compiler) WithFontPath(p string) *Compiler {
+func (c *CompileCommand) WithFontPath(p string) *CompileCommand {
 	c.fontPaths = append(c.fontPaths, p)
 	return c
 }
 
-func (t Compiler) Compile(input string) ([]byte, error) {
+func (c *CompileCommand) WithoutSystemFonts() *CompileCommand {
+	c.isIgnoreSystemFonts = true
+	return c
+}
+
+func (c *CompileCommand) WithoutEmbeddedFonts() *CompileCommand {
+	c.isIgnoreEmbeddedFonts = true
+	return c
+}
+
+func (c CompileCommand) Run(input string) ([]byte, error) {
 	pdfPath, err := os.CreateTemp("", "out.pdf")
 
 	cmd := exec.Command(
-		t.binPath,
+		c.binPath,
 		"compile",
 		"-",
-		"--ignore-system-fonts",
-		"--ignore-embedded-fonts",
 		"--format", "pdf",
 		pdfPath.Name(),
 	)
 
-	if len(t.fontPaths) > 0 {
-		cmd.Args = append(cmd.Args, "--font-path", strings.Join(t.fontPaths, ":"))
+	if c.isIgnoreSystemFonts {
+		cmd.Args = append(cmd.Args, "--ignore-system-fonts")
+	}
+
+	if c.isIgnoreEmbeddedFonts {
+		cmd.Args = append(cmd.Args, "--ignore-embedded-fonts")
+	}
+
+	if len(c.fontPaths) > 0 {
+		cmd.Args = append(cmd.Args, "--font-path", strings.Join(c.fontPaths, ":"))
 	}
 
 	stdin, err := cmd.StdinPipe()
