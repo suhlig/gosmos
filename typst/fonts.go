@@ -45,6 +45,8 @@ func (c *FontsCommand) WithoutEmbeddedFonts() *FontsCommand {
 	return c
 }
 
+// TODO --variants Also lists style variants of each font family
+
 func (c FontsCommand) Help() (string, error) {
 	cmd := exec.Command(c.binPath, "fonts", "--help")
 
@@ -61,9 +63,6 @@ func (c FontsCommand) Help() (string, error) {
 }
 
 func (c FontsCommand) Run() ([]string, error) {
-	/*
-	   TODO --variants Also lists style variants of each font family
-	*/
 	cmd := exec.Command(c.binPath, "fonts")
 
 	if c.isIgnoreSystemFonts {
