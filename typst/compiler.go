@@ -5,33 +5,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 type CompileCommand struct {
-	binPath               string
-	fontPaths             []string
-	isIgnoreSystemFonts   bool
-	isIgnoreEmbeddedFonts bool
+	binPath     string
+	fontOptions fontOptions
 }
 
-func (c CompileCommand) Help() (string, error) {
-	cmd := exec.Command(c.binPath, "help")
-
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-
-	err := cmd.Run()
-
-	if err != nil {
-		return "", err
+func NewCompileCommand(binPath string, opts ...FontOption) (*CompileCommand, error) {
+	t := CompileCommand{
+		binPath:     binPath,
+		fontOptions: applyFontOptions(opts),
 	}
-
-	return stdout.String(), nil
-}
-
-func NewCompileCommand(binPath string) (*CompileCommand, error) {
-	t := CompileCommand{binPath: binPath}
 
 	_, err := t.Help()
 
@@ -48,19 +33,19 @@ func NewCompileCommand(binPath string) (*CompileCommand, error) {
 // TODO SOURCE_DATE_EPOCH
 // TODO TYPST_FEATURES
 
-func (c *CompileCommand) WithFontPath(p string) *CompileCommand {
-	c.fontPaths = append(c.fontPaths, p)
-	return c
-}
+func (c CompileCommand) Help() (string, error) {
+	cmd := exec.Command(c.binPath, "help")
 
-func (c *CompileCommand) WithoutSystemFonts() *CompileCommand {
-	c.isIgnoreSystemFonts = true
-	return c
-}
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
 
-func (c *CompileCommand) WithoutEmbeddedFonts() *CompileCommand {
-	c.isIgnoreEmbeddedFonts = true
-	return c
+	err := cmd.Run()
+
+	if err != nil {
+		return "", err
+	}
+
+	return stdout.String(), nil
 }
 
 func (c CompileCommand) Run(input string) ([]byte, error) {
@@ -74,17 +59,7 @@ func (c CompileCommand) Run(input string) ([]byte, error) {
 		pdfPath.Name(),
 	)
 
-	if c.isIgnoreSystemFonts {
-		cmd.Args = append(cmd.Args, "--ignore-system-fonts")
-	}
-
-	if c.isIgnoreEmbeddedFonts {
-		cmd.Args = append(cmd.Args, "--ignore-embedded-fonts")
-	}
-
-	if len(c.fontPaths) > 0 {
-		cmd.Args = append(cmd.Args, "--font-path", strings.Join(c.fontPaths, ":"))
-	}
+	cmd.Args = append(cmd.Args, c.fontOptions.args()...)
 
 	stdin, err := cmd.StdinPipe()
 

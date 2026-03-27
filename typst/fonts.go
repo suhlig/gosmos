@@ -2,22 +2,21 @@ package typst
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 )
 
 // FontsCommand lists all discovered fonts in system and custom font paths
 type FontsCommand struct {
-	binPath               string
-	fontPaths             []string
-	isIgnoreSystemFonts   bool
-	isIgnoreEmbeddedFonts bool
+	binPath     string
+	fontOptions fontOptions
 }
 
-func NewFontsCommand(binPath string) (*FontsCommand, error) {
-	f := FontsCommand{binPath: binPath}
+func NewFontsCommand(binPath string, opts ...FontOption) (*FontsCommand, error) {
+	f := FontsCommand{
+		binPath:     binPath,
+		fontOptions: applyFontOptions(opts),
+	}
 
 	_, err := f.Help()
 
@@ -25,24 +24,7 @@ func NewFontsCommand(binPath string) (*FontsCommand, error) {
 		return nil, err
 	}
 
-	fmt.Fprintf(os.Stderr, "returning %v\n", &f)
-
 	return &f, nil
-}
-
-func (c *FontsCommand) WithFontPath(p string) *FontsCommand {
-	c.fontPaths = append(c.fontPaths, p)
-	return c
-}
-
-func (c *FontsCommand) WithoutSystemFonts() *FontsCommand {
-	c.isIgnoreSystemFonts = true
-	return c
-}
-
-func (c *FontsCommand) WithoutEmbeddedFonts() *FontsCommand {
-	c.isIgnoreEmbeddedFonts = true
-	return c
 }
 
 // TODO --variants Also lists style variants of each font family
@@ -65,17 +47,7 @@ func (c FontsCommand) Help() (string, error) {
 func (c FontsCommand) Run() ([]string, error) {
 	cmd := exec.Command(c.binPath, "fonts")
 
-	if c.isIgnoreSystemFonts {
-		cmd.Args = append(cmd.Args, "--ignore-system-fonts")
-	}
-
-	if c.isIgnoreEmbeddedFonts {
-		cmd.Args = append(cmd.Args, "--ignore-embedded-fonts")
-	}
-
-	if len(c.fontPaths) > 0 {
-		cmd.Args = append(cmd.Args, "--font-path", strings.Join(c.fontPaths, ":"))
-	}
+	cmd.Args = append(cmd.Args, c.fontOptions.args()...)
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
