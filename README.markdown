@@ -1,105 +1,49 @@
 # gosmos
 
-This is a collection of Go tools that embed Typst as an immutable dependency, with deterministic builds and runtime integrity checks.
+This Go package wraps Typst, a modern typesetting system, in a Go package. The only public interface is the `typst` program. which this package executes.
 
-## Architecture Brief (Core Idea)
+It does not expect the binary to be present on the executing host. Instead, this package provides a Go tool that fetches the Typst binary from the official release page using a `go-generate` statement.
 
-> Typst is treated as *source material*, not a dependency.
+The Go program that uses this package is assumed to be packaged using [ko](https://ko.build/features/static-assets/), which treats the Typst binary as static asset. This is a compromise betweeen the need to have the binary present on the host system and a separate build step for different platforms, or even embedding it into the Go binary.
 
-- It is fetched explicitly
-- Embedded immutably
-- Extracted ephemerally
-- Executed as a disposable cache artifact
+# Usage
 
-### Invariants
+1. Add this package to your Go project by running:
 
-- `go build` never downloads anything
-- Runtime never contacts the network
-- Execution failures trigger regeneration
-- The filesystem is never trusted for persistence
+    ```sh
+    go get github.com/suhlig/gosmos
+    ```
 
-## Build-Time Phase: `go generate`
+1. Get the Go tool for fetching the typst binary at build time:
 
-Prepare **all mutable inputs** before compilation:
+    ```command
+    go get -tool github.com/suhlig/gosmos/cmd/fetch-typst
+    ```
 
-- `internal/typstmeta/version.go` defines:
-  - Typst version
-  - Expected SHA256 digest
-- `go generate` runs `cmd/typst-fetch`
-- The generator:
-  - Downloads the official Typst Linux binary
-  - Verifies its checksum
-  - Writes it atomically to `internal/embedded/typst/typst`
+1. Add the code that fetches the Typst binary for inclusion as a static asset:
 
-## Runtime Phase: Embedded Execution
+    ```go
+    //go:generate go tool github.com/suhlig/gosmos/cmd/fetch-typst --path kodata/typst
+    ```
 
-At runtime, the server:
+1. Build and run your container on a Mac:
 
-1. Writes the embedded Typst binary to:
-   ```
-   ~/.cache/typstweb/typst
-   ```
-2. Uses atomic write + rename
-3. Sets executable permissions
+    ```command
+    docker run -p 8080:8080 $(ko build --local --platform=linux/arm64 ./cmd/server)
+    ```
 
-The execution strategy is failure-driven:
+1. Push the container to a remote host using [docker pussh](https://github.com/psviderski/unregistry):
 
-- Attempt to execute Typst
-- If execution fails:
-  - Re-extract the binary
-  - Retry once
-- Second failure propagates
+    ```command
+    docker pussh --platform linux/amd64 $(ko build --local --platform=linux/arm64 ./cmd/server) alice@my.docker.host.example.com
+    ```
 
-The cache directory is treated as disposable.
+1. Take note of the image name and run the container on the remote host using:
 
-- It may be deleted at any time
-- The program assumes nothing persists
-- Deleting a running executable is safe on Linux (inode semantics)
+    ```command
+    docker run -p 8090:8080 --rm -it ko.local/server-bfaa5a9da622cb30b1dc28c3904f0eee:cabc6c5ae22a54fba9793d084c7bbd8957cf45ba81191a76b0aae5297bd27bc1
+    ```
 
-This collapses GC, integrity checks, and versioning into one rule:
+# License
 
-> If it runs, use it.
-> If it doesn’t, regenerate it.
-
-## Pros
-
-- Deterministic builds
-- No runtime downloads
-- No Makefiles or shell scripts
-- No IPC wrappers around Typst
-- Safe under crashes, restarts, and concurrency
-- Works with cross-compilation
-- Minimal moving parts
-
-## Cons and Trade-offs
-
-- Embedded binary increases final executable size
-- Git history grows over time (one binary per update)
-- First execution pays extraction cost
-- Linux-specific assumptions (inode semantics)
-
-## Alternatives Considered
-
-### Fetching During `go build`
-
-- Breaks reproducibility
-- Violates Go build guarantees
-- Breaks build caching
-
-### Runtime Download of Typst
-
-- Network dependency
-- Supply-chain risk
-- Operational fragility
-
-### Typst as a Separate Service / IPC Wrapper
-
-- Additional moving parts
-- More failure modes
-- Harder deployment
-
-### Binary-in-Go-Module Dependency
-
-- Abuses module system
-- Poor long-term scaling
-- Obscures provenance
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
