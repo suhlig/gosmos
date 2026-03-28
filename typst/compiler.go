@@ -48,8 +48,16 @@ func (c CompileCommand) Help() (string, error) {
 	return stdout.String(), nil
 }
 
-func (c CompileCommand) Run(input string) ([]byte, error) {
+// Run compiles the given typst source and returns a CompileResult containing
+// the PDF bytes and any diagnostics emitted by the compiler.
+func (c CompileCommand) Run(input string) (*CompileResult, error) {
 	pdfPath, err := os.CreateTemp("", "out.pdf")
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to create temp file: %w", err)
+	}
+
+	defer os.Remove(pdfPath.Name())
 
 	cmd := exec.Command(
 		c.binPath,
@@ -67,8 +75,6 @@ func (c CompileCommand) Run(input string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to get stdin pipe: %s", err.Error())
 	}
 
-	// TODO Accept readers or channels where stdout and stderr can be piped to
-	// so that clients get to present errors and warnings
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -80,11 +86,10 @@ func (c CompileCommand) Run(input string) ([]byte, error) {
 
 	err = cmd.Run()
 
-	fmt.Fprintf(os.Stderr, "STDOUT:\n%s\n", stdout.String())
-	fmt.Fprintf(os.Stderr, "STDERR:\n%s\n", stderr.String())
+	diagnostics := append(parseStdout(stdout.String()), parseStderr(stderr.String())...)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to run command %s: %w", cmd, err)
+		return &CompileResult{Diagnostics: diagnostics}, fmt.Errorf("failed to run command %s: %w", cmd, err)
 	}
 
 	pdf, err := os.ReadFile(pdfPath.Name())
@@ -93,7 +98,5 @@ func (c CompileCommand) Run(input string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to read result PDF: %w", err)
 	}
 
-	defer os.Remove(pdfPath.Name())
-
-	return pdf, nil
+	return &CompileResult{PDF: pdf, Diagnostics: diagnostics}, nil
 }
