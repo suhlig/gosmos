@@ -44,6 +44,10 @@ The Go program that uses this package is assumed to be packaged using [ko](https
     docker run -p 8090:8080 --rm -it ko.local/server-bfaa5a9da622cb30b1dc28c3904f0eee:cabc6c5ae22a54fba9793d084c7bbd8957cf45ba81191a76b0aae5297bd27bc1
     ```
 
+# Example
+
+There is an [example project](https://github.com/suhlig/typst-web) that demonstrates how to use this package to compile Typst code to PDF.
+
 # License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
