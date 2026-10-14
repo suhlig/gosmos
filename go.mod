@@ -1,6 +1,6 @@
 module github.com/suhlig/gosmos
 
-go 1.26.1
+go 1.26.9
 
 require (
 	github.com/google/go-github/v84 v84.0.0
